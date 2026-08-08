@@ -1,0 +1,81 @@
+VIVA — BACKEND FIXES LOG
+=========================
+
+Your uploaded app.py (inside Langchain.zip) was NOT the interview backend
+described in your prompt — it was an unrelated ~30-line standalone script
+that extracted a person's name/age from text using PydanticOutputParser.
+There was no FastAPI app, no interview logic, no RunnableParallel/
+RunnableLambda, and no endpoints. So there was nothing to "fix" in that
+file for this project — I built the full backend from scratch, applying
+the exact LangChain concept chain you asked to preserve:
+
+    ChatPromptTemplate -> Structured Output -> LCEL -> RunnableParallel
+    -> RunnableLambda -> FastAPI -> Gemini
+
+SECURITY — ACT ON THIS FIRST
+-----------------------------
+Your uploaded app.py had a live Gemini API key hardcoded in plain text:
+    api_key="AQ.Ab8RN6I2Ey..."
+Rotate/revoke that key immediately in Google AI Studio / Google Cloud
+Console. Never commit API keys to source — the new backend loads it from
+a .env file (see .env.example) which is already gitignored.
+
+WHAT WAS BUILT
+---------------
+1. Pydantic request/response contract
+   - InterviewSetupRequest(role, topic, difficulty)
+   - QuestionResponse(role, topic, difficulty, question, expected_points)
+   - EvaluateRequest(role, topic, difficulty, question, answer)
+   - EvaluationResponse(score, strengths, weaknesses, feedback)
+   These map 1:1 to what the frontend sends/expects — no mismatched fields.
+
+2. Question generation chain
+   ChatPromptTemplate (system + human messages) piped into
+   model.with_structured_output(QuestionOutput). Structured output means
+   Gemini is constrained to return {question, expected_points} directly
+   as a parsed Pydantic object — no manual JSON parsing, no risk of the
+   model wrapping its answer in prose or markdown fences.
+
+3. Evaluation chain (this is where RunnableParallel/RunnableLambda live)
+   - score_chain: ChatPromptTemplate -> structured output -> ScoreOutput
+     (score, strengths, weaknesses)
+   - feedback_chain: ChatPromptTemplate -> structured output ->
+     FeedbackOutput (feedback text)
+   - RunnableParallel runs both chains concurrently against the same
+     question/answer, since they're independent judgments that don't
+     need to see each other's output.
+   - RunnableLambda(merge_evaluation) takes the dict of both branch
+     results and merges them into the single EvaluationResponse the
+     frontend expects.
+
+4. FastAPI endpoints
+   - GET  /health              — simple liveness check
+   - POST /generate-question   — takes InterviewSetupRequest, invokes the
+                                  question chain, returns QuestionResponse
+   - POST /evaluate             — takes EvaluateRequest, invokes the
+                                  evaluation chain, returns EvaluationResponse
+   Both endpoints catch any chain/model failure and return a clean 502
+   with a human-readable message instead of a raw stack trace.
+
+5. CORS
+   Configured with CORSMiddleware in main.py, scoped to
+   http://localhost:5173 / http://127.0.0.1:5173 (the Vite dev server) —
+   not a wildcard. Add your deployed frontend origin to the allow_origins
+   list when you host this for real.
+
+6. Model
+   gemini-2.5-flash via langchain-google-genai 4.3.2 (the current
+   consolidated google-genai SDK — not the deprecated
+   google.generativeai package the old version pulled in).
+
+VERIFIED
+--------
+- Backend installs cleanly into a venv from requirements.txt.
+- main.py imports without errors and registers all three routes
+  (verified programmatically, not just by inspection).
+- uvicorn boots the app successfully with no startup errors.
+- Frontend (Vite + React + Tailwind v4) builds cleanly with `npm run build`
+  and the dev server serves the app with no console/module errors.
+- I could not call the live Gemini API from this sandboxed environment
+  (no network access to generativelanguage.googleapis.com), so you'll do
+  the first live end-to-end run yourself — see README "Testing" section.

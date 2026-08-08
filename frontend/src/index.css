@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Caveat", cursive;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --color-board: #16302a;
+  --color-board-2: #1c3b32;
+  --color-rail: #0d1f1a;
+  --color-chalk: #eef2ea;
+  --color-chalk-dim: #a9bcb2;
+  --color-amber: #e8b84b;
+  --color-amber-dim: #c99a35;
+  --color-coral: #e2836b;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-rail);
+  font-family: var(--font-mono);
+  color: var(--color-chalk);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Chalkboard surface: layered radial gradients simulate dust + uneven chalk wear */
+.chalkboard {
+  background-color: var(--color-board);
+  background-image:
+    radial-gradient(ellipse 60% 40% at 20% 15%, rgba(255,255,255,0.05), transparent 60%),
+    radial-gradient(ellipse 50% 30% at 85% 80%, rgba(255,255,255,0.04), transparent 60%),
+    radial-gradient(ellipse 80% 60% at 50% 100%, rgba(0,0,0,0.25), transparent 70%);
+}
+
+/* Hand-chalked dashed border look */
+.chalk-border {
+  border: 2px dashed rgba(238, 242, 234, 0.35);
+}
+
+.chalk-border-solid {
+  border: 1.5px solid rgba(238, 242, 234, 0.22);
+}
+
+/* Focus visibility, kept consistent regardless of element */
+:focus-visible {
+  outline: 2px solid var(--color-amber);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+::selection {
+  background: var(--color-amber);
+  color: var(--color-rail);
+}
+
+/* Chalk texture grain overlay, subtle, applied via pseudo-element on .chalk-texture */
+.chalk-texture {
+  position: relative;
+}
+.chalk-texture::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+textarea::placeholder,
+input::placeholder {
+  color: var(--color-chalk-dim);
+  opacity: 0.7;
+}
+
+/* Custom scrollbar to match the board */
+* {
+  scrollbar-color: var(--color-chalk-dim) transparent;
+  scrollbar-width: thin;
+}
